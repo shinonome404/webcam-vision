@@ -10,10 +10,17 @@
     ブラウザで http://127.0.0.1:8000/ を開く（Ctrl+C で終了）
 """
 
+# 標準ライブラリのインポート
 import cv2  # OpenCVを使ってカメラ映像をJPEGに変換するために使用
 import threading # スレッド間でカメラアクセスを同期するためのロック用
-from local.camera import Camera # カメラ操作用クラスをインポート
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer # HTTPサーバー用クラスをインポート
+
+# ローカルモジュールのインポート
+from local.draw import draw_detections # 物体検出結果を画像に描画する関数
+from local.camera import Camera # カメラ操作用クラスをインポート
+from core.detector import Detector # 物体検出用クラス
+
+
 
 """ サーバーの設定 """
 HOST = "127.0.0.1"  # 自分のPCからのみアクセス可能にする
@@ -81,6 +88,7 @@ class Handler(BaseHTTPRequestHandler):
     def send_stream(self):
         # カメラクラスのインスタンスをサーバーから取得する
         camera = self.server.camera
+        detector = self.server.detector
 
         # HTTPヘッダーを送信して、ブラウザにMJPEG形式であることを伝える
         # HTTPステータスコード200 OKを送信
@@ -102,6 +110,10 @@ class Handler(BaseHTTPRequestHandler):
                 if frame is None:       # フレームが取得できなかったらループを抜ける
                     break
 
+                # 判定して、結果の枠と名前を画像に描き込む
+                detections = detector.detect(frame)
+                draw_detections(frame, detections)
+
                 # 画像をメモリ上でJPEGに変換する
                 ok, jpg = cv2.imencode(".jpg", frame)  # フレームをJPEGに変換
                 if not ok:                             # 変換に失敗したら次のフレームへ
@@ -122,7 +134,15 @@ class Handler(BaseHTTPRequestHandler):
 メイン関数
 """
 def main():
-    # カメラを初期化する
+    # モデルの読み込みはカメラより先に行う
+    # （モデルがなかったとき、開いたカメラを解放し忘れないようにするため）
+    try:
+        detector = Detector()
+    except FileNotFoundError as e:
+        print(e)
+        return
+
+    # 停止の合図用イベントを作成してサーバーに預けておく
     try:
         camera = Camera(CAMERA_INDEX)
     except RuntimeError as e:
@@ -134,8 +154,9 @@ def main():
     server = ThreadingHTTPServer((HOST, PORT), Handler)
 
     # Handler から使えるよう、サーバーに預けておく
-    server.camera = camera  # Handler から使えるよう、サーバーに預けておく
-    server.stop_event = threading.Event()  # 停止の合図
+    server.camera = camera # Handler から使えるよう、サーバーに預けておく
+    server.detector = detector # Handler から使えるよう、サーバーに預けておく
+    server.stop_event = threading.Event() # 停止の合図
 
     # サーバーを起動したことを通知するメッセージを表示
     print(f"http://{HOST}:{PORT}/ で起動しました（停止ボタン または Ctrl+C で終了）")

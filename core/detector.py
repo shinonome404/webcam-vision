@@ -6,14 +6,16 @@
 ローカル版・AWS版のどちらからも共通で使う。
 """
 
-from dataclasses import dataclass
-from pathlib import Path
+# 標準ライブラリのインポート
+import cv2  # OpenCVのDNNモジュールを使うため
+import threading # スレッドセーフにするためのロック用
+from pathlib import Path # ファイルパス操作用
+from dataclasses import dataclass # データクラス用
 
-import cv2
+# コアモジュールのインポート
+from core.coco_labels import COCO_LABELS # COCOデータセットのラベル一覧
 
-from core.coco_labels import COCO_LABELS
-
-# プロジェクトの一番上のフォルダ（このファイルの2つ上）
+"""プロジェクトのルートやモデルのパスを定義する。"""
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULT_MODEL_PATH = (
@@ -52,6 +54,8 @@ class Detector:
         )
         # この値より確からしさが低い結果は捨てる
         self._score_threshold = score_threshold
+        # 複数のスレッドから同時にモデルを使わないようにするロック
+        self._lock = threading.Lock()
 
     def detect(self, image):
         """画像を判定し、Detection のリストを返す。"""
@@ -62,8 +66,10 @@ class Detector:
         blob = cv2.dnn.blobFromImage(
             image, size=INPUT_SIZE, swapRB=True, crop=False
         )
-        self._net.setInput(blob)
-        output = self._net.forward()
+        # 入力のセットと推論は1組の操作なので、まとめてロックする
+        with self._lock:
+            self._net.setInput(blob)
+            output = self._net.forward()
 
         # output の形は (1, 1, 件数, 7)
         # 各行: [画像番号, クラスID, 確からしさ, 左, 上, 右, 下]

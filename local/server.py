@@ -11,6 +11,7 @@
 """
 
 import cv2  # OpenCVを使ってカメラ映像をJPEGに変換するために使用
+import threading # スレッド間でカメラアクセスを同期するためのロック用
 from local.camera import Camera # カメラ操作用クラスをインポート
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer # HTTPサーバー用クラスをインポート
 
@@ -36,10 +37,40 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    # POSTリクエストを処理するメソッド
+    def do_POST(self):
+        # URLのパスに応じて処理を振り分ける
+        if self.path == "/shutdown":
+            self.send_shutdown()
+        else:
+            self.send_error(404)
+
+    # 停止ボタンを押したときの処理
+    def send_shutdown(self):
+        """停止ボタン：完了ページを返してから、サーバーに停止を依頼する。"""
+        body = "<p>停止しました。このタブは閉じて大丈夫です。</p>".encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+        # ① 停止の合図を出す（配信ループを先に止める）
+        self.server.stop_event.set()
+        # serve_forever() を終わらせる。
+        # shutdown() は待ち受けが終わるまで待つため、別スレッドで呼ぶ
+        threading.Thread(target=self.server.shutdown).start()
+
     # トップページを返すメソッド
     def send_index(self):
         """トップページ：映像を表示する<img>タグだけを返す。"""
-        body = '<h1>Stream</h1><img src="/stream">'.encode("utf-8")
+        body = (
+            "<h1>Stream</h1>"
+            '<img src="/stream"><br>'
+            '<form method="post" action="/shutdown">'
+            '<button type="submit">停止</button>'
+            "</form>"
+        ).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -65,7 +96,8 @@ class Handler(BaseHTTPRequestHandler):
 
         # ここからループでフレームを送り続ける
         try:
-            while True:
+            # 停止の合図が出るまで送り続ける
+            while not self.server.stop_event.is_set():
                 frame = camera.read()   # カメラから1フレーム取得
                 if frame is None:       # フレームが取得できなかったらループを抜ける
                     break
@@ -101,21 +133,29 @@ def main():
     # （ストリーム配信中でも他のリクエストを受け付けられるようにするため）
     server = ThreadingHTTPServer((HOST, PORT), Handler)
 
-    # Handler からカメラ係を使えるよう、サーバーに預けておく
-    server.camera = camera
+    # Handler から使えるよう、サーバーに預けておく
+    server.camera = camera  # Handler から使えるよう、サーバーに預けておく
+    server.stop_event = threading.Event()  # 停止の合図
 
     # サーバーを起動したことを通知するメッセージを表示
-    print(f"http://{HOST}:{PORT}/ で起動しました（Ctrl+C で終了）")
+    print(f"http://{HOST}:{PORT}/ で起動しました（停止ボタン または Ctrl+C で終了）")
     
     # サーバーを起動してリクエストを処理し続ける
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
+
+    # サーバーを停止する処理
     finally:
-        # 終了時は必ずカメラを解放する（解放しないと他のアプリから使えなくなる）
+        print("停止しています…")
+        # ① 停止の合図を出す（配信ループは次のフレームで抜ける）
+        server.stop_event.set()
+        # ③ サーバーの受付を止める
         server.server_close()
-        camera.release()  # カメラを解放して終了
+        # ④ カメラを解放する（読み取り中ならロックで終わるのを待つ）
+        camera.release()
+        print("停止しました")
 
 """ エントリーポイント """
 if __name__ == "__main__":

@@ -48,7 +48,9 @@ class Camera:
     # カメラを解放するメソッド
     def release(self):
         """カメラを解放する（解放しないと他のアプリから使えなくなる）。"""
-        self._cap.release()
+        # 読み取り中に解放しないよう、read() と同じロックを使う
+        with self._lock:
+            self._cap.release()
 
 
 """ 単体での動作確認用 """

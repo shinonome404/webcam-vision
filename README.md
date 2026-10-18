@@ -25,7 +25,7 @@ webcam-vision/
 │   ├─ camera.py     カメラからフレームを取得する部品
 │   ├─ server.py     ブラウザへMJPEGで配信するサーバー
 │   └─ EXPLANATION.md  local の仕組みの解説
-├─ practice/         開発初期に段階的に動作確認したファイル
+├─ prototype/        開発初期に段階的に動作確認したファイル
 ├─ requirements.txt  必要なPythonライブラリ
 └─ README.md
 ```
@@ -71,7 +71,9 @@ python -m local.camera
 python -m local.server
 ```
 
-ブラウザで http://127.0.0.1:8000/ を開くとカメラ映像が表示されます。`Ctrl+C` で終了します。
+ブラウザで http://127.0.0.1:8000/ を開くとカメラ映像が表示されます。
+
+ページの「停止」ボタン、またはターミナルで `Ctrl+C` を押すと、配信を止めてカメラを解放してから終了します。
 
 ## トラブルシューティング
 

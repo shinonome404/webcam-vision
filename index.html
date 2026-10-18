@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101722">
+    <title>Webcam Vision — カメラ物体検出</title>
+    <link rel="stylesheet" href="/style.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+    <script defer src="/app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Webcam Vision ホーム">
+        <span class="brand-mark" aria-hidden="true">◎</span>
+        <span>webcam<span class="brand-light">vision</span></span>
+      </a>
+      <span class="topbar-note">LIVE OBJECT DETECTION</span>
+    </header>
+
+    <main class="layout">
+      <section class="workspace" aria-labelledby="camera-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">YOUR CAMERA, UNDERSTOOD</p>
+            <h1 id="camera-heading">身のまわりを見てみよう</h1>
+            <p class="subheading">カメラを起動すると、映像内の物体をリアルタイムで検出します。</p>
+          </div>
+          <span class="live-status" id="camera-status"><span></span>停止中</span>
+        </div>
+
+        <div class="camera-card">
+          <div class="camera-view" id="camera-view">
+            <video id="camera" autoplay playsinline muted></video>
+            <canvas id="overlay" aria-hidden="true"></canvas>
+            <div class="camera-placeholder" id="camera-placeholder">
+              <div class="camera-icon" aria-hidden="true">⌁</div>
+              <strong>カメラを起動して始めましょう</strong>
+              <span>USBウェブカメラを接続し、ブラウザーで使用を許可してください</span>
+            </div>
+            <div class="model-loading hidden" id="model-loading">
+              <span class="spinner" aria-hidden="true"></span>
+              <span>検出モデルを準備しています…</span>
+            </div>
+          </div>
+          <div class="camera-controls">
+            <label class="camera-select-label" for="camera-select">カメラ</label>
+            <select id="camera-select" aria-label="使用するカメラ" disabled>
+              <option value="">カメラを選択</option>
+            </select>
+            <button class="button button-primary" id="start-camera">カメラを起動</button>
+            <button class="button button-secondary hidden" id="stop-camera">停止</button>
+          </div>
+        </div>
+
+        <div class="detections-heading">
+          <div>
+            <h2>検出した物体</h2>
+            <p id="detection-summary">カメラを起動すると検出結果がここに表示されます。</p>
+          </div>
+          <span class="count-pill" id="detection-count">0</span>
+        </div>
+        <div class="detection-list" id="detection-list" aria-live="polite">
+          <div class="empty-detections">検出された物体はまだありません</div>
+        </div>
+      </section>
+
+      <aside class="assistant-card" aria-labelledby="assistant-heading">
+        <div class="assistant-heading">
+          <div class="assistant-avatar" aria-hidden="true">✳</div>
+          <div>
+            <p class="eyebrow">AI ASSISTANT</p>
+            <h2 id="assistant-heading">Visionに聞いてみる</h2>
+          </div>
+        </div>
+        <div class="ai-status" id="ai-status" role="status">
+          <span class="status-dot"></span>
+          <span>AIの設定を確認しています…</span>
+        </div>
+        <div class="chat-messages" id="chat-messages" aria-live="polite" aria-label="チャット履歴">
+          <div class="chat-message assistant-message">
+            <span class="message-avatar" aria-hidden="true">✳</span>
+            <p>こんにちは！カメラの映像で気になったことを聞いてください。今見えている物体をもとにお答えします。</p>
+          </div>
+        </div>
+        <form class="chat-form" id="chat-form">
+          <label class="sr-only" for="chat-input">AIへのメッセージ</label>
+          <textarea id="chat-input" rows="2" maxlength="2000" placeholder="例：何が映っていますか？" required></textarea>
+          <button class="send-button" id="send-message" type="submit" aria-label="メッセージを送信">↑</button>
+        </form>
+        <p class="privacy-note">映像はブラウザー内で処理されます。AIには検出ラベルのみ送信します。</p>
+      </aside>
+    </main>
+    <footer>Webcam Vision <span>•</span> TensorFlow.js COCO-SSD</footer>
+  </body>
+</html>

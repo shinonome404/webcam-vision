@@ -7,18 +7,17 @@ if not cap.isOpened():
     print(f"カメラ {CAMERA_INDEX} を開けませんでした")
     raise SystemExit(1)
 
-try:
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            print("フレームを取得できませんでした")
-            break
+# 起動直後は暗いので、数十フレーム読み捨てて明るさ調整を待つ
+for _ in range(30):
+    ok, frame = cap.read()
 
-        cv2.imshow("camera", frame)
+cap.release()
 
-        # 1ミリ秒キー入力を待つ。q で終了
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-finally:
-    cap.release()
-    cv2.destroyAllWindows()
+if not ok:
+    print("フレームを取得できませんでした")
+    raise SystemExit(1)
+
+print("画像サイズ:", frame.shape)
+print("平均の明るさ:", frame.mean())
+cv2.imwrite("snapshot.jpg", frame)
+print("snapshot.jpg を保存しました")
